@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Система распознавания лиц</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #22D3EE;
+  --primary-2: #7C3AED;
+  --primary-rgb: 34,211,238;
+  --primary-2-rgb: 124,58,237;
+  --grad: linear-gradient(135deg, #22D3EE 0%, #7C3AED 100%);
+  --grad-soft: linear-gradient(135deg, rgba(34,211,238,0.12) 0%, rgba(124,58,237,0.14) 100%);
+  --card: rgba(12,20,38,0.72);
+  --border: rgba(34,211,238,0.14);
+  --text: #E2F4FF;
+  --text-sub: #7C93B8;
+  --ok: #22E3A0;
+  --danger: #FB7185;
+  --shadow: 0 4px 28px rgba(0,0,0,0.5), 0 0 0 1px rgba(34,211,238,0.05);
+  --radius: 14px;
+  color-scheme: dark;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.65;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  background-color: #05080F;
+  background-image:
+    radial-gradient(900px 520px at 10% -10%, rgba(34,211,238,0.18), transparent 60%),
+    radial-gradient(900px 540px at 100% 0%, rgba(124,58,237,0.20), transparent 58%),
+    radial-gradient(760px 600px at 50% 115%, rgba(34,211,238,0.10), transparent 62%),
+    linear-gradient(rgba(34,211,238,0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34,211,238,0.055) 1px, transparent 1px);
+  background-size: auto, auto, auto, 44px 44px, 44px 44px;
+  background-attachment: fixed;
+}
+
+/* 导航 */
+.navbar {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(5,8,15,0.78);
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgba(34,211,238,0.10), 0 8px 30px rgba(0,0,0,0.4);
+}
+.nav-inner {
+  max-width: 1240px; margin: 0 auto; padding: 0 28px; height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.logo { font-size: 15.5px; font-weight: 700; display: flex; align-items: center; gap: 10px; color: var(--text); letter-spacing: .5px; }
+.logo-dot {
+  width: 26px; height: 26px; border-radius: 8px;
+  background: var(--grad);
+  box-shadow: 0 0 14px rgba(34,211,238,0.75), 0 0 34px rgba(124,58,237,0.5);
+  position: relative;
+}
+.logo-dot::after {
+  content: ""; position: absolute; inset: 7px;
+  border-radius: 50%; border: 2px solid #fff; opacity: .9;
+}
+.nav-links { display: flex; gap: 4px; }
+.nav-links a {
+  padding: 9px 18px; color: var(--text-sub); text-decoration: none;
+  border-radius: 10px; font-size: 13.5px; font-weight: 500;
+  transition: all .18s ease; cursor: pointer;
+}
+.nav-links a:hover { background: rgba(34,211,238,0.12); color: #7DE8FB; }
+.nav-links a.active {
+  color: #04121A; background: var(--grad);
+  box-shadow: 0 0 18px rgba(34,211,238,0.5);
+  font-weight: 700;
+}
+
+/* 容器 */
+.container { max-width: 1240px; margin: 0 auto; padding: 32px 28px 72px; }
+.page-title {
+  font-size: 24px; font-weight: 700; letter-spacing: -.4px;
+  margin-bottom: 22px; display: flex; align-items: center; gap: 12px;
+}
+.page-title::before {
+  content: ""; width: 4px; height: 22px;
+  border-radius: 3px; background: var(--grad);
+  box-shadow: 0 0 10px rgba(34,211,238,0.6);
+}
+.page-title-row {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px;
+}
+.page-title-row .page-title { margin-bottom: 0; }
+
+/* 页面切换 */
+.page { display: none; }
+.page.active { display: block; animation: fadeUp .28s ease; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 卡片 */
+.card {
+  position: relative;
+  background: var(--card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card::before {
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(34,211,238,0.6), rgba(124,58,237,0.6), transparent);
+  pointer-events: none;
+}
+.card-title {
+  font-size: 14.5px; font-weight: 650; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-title::before {
+  content: ""; width: 3px; height: 14px;
+  border-radius: 2px; background: var(--grad);
+  box-shadow: 0 0 8px rgba(34,211,238,0.7);
+}
+
+/* 布局 */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 22px; align-items: start;
+}
+
+/* 视频 */
+.video-card { padding: 14px; background: rgba(8,14,26,0.88); }
+.video-shell {
+  position: relative; border-radius: 10px; overflow: hidden;
+  background: radial-gradient(circle at 30% 20%, #0B1830, #03060C 72%);
+  box-shadow:
+    inset 0 0 0 1px rgba(34,211,238,0.35),
+    inset 0 0 50px rgba(34,211,238,0.10),
+    0 8px 34px rgba(0,0,0,0.65);
+  aspect-ratio: 4 / 3;
+}
+.video-shell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.video-shell::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 64px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.35), transparent);
+  pointer-events: none; z-index: 2;
+}
+.video-corner {
+  position: absolute; width: 26px; height: 26px;
+  border-color: rgba(34,211,238,0.95);
+  border-style: solid; border-width: 0; z-index: 3;
+  filter: drop-shadow(0 0 7px rgba(34,211,238,0.95));
+}
+.vc-tl { top: 12px; left: 12px; border-top-width: 2px; border-left-width: 2px; border-radius: 5px 0 0 0; }
+.vc-tr { top: 12px; right: 12px; border-top-width: 2px; border-right-width: 2px; border-radius: 0 5px 0 0; }
+.vc-bl { bottom: 12px; left: 12px; border-bottom-width: 2px; border-left-width: 2px; border-radius: 0 0 0 5px; }
+.vc-br { bottom: 12px; right: 12px; border-bottom-width: 2px; border-right-width: 2px; border-radius: 0 0 5px 0; }
+.live-badge {
+  position: absolute; top: 14px; left: 50%;
+  transform: translateX(-50%); z-index: 4;
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 13px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: .6px;
+  color: #CFFAFE; background: rgba(3,10,18,0.62);
+  border: 1px solid rgba(34,211,238,0.35);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 14px rgba(34,211,238,0.25);
+}
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #22D3EE;
+  box-shadow: 0 0 0 0 rgba(34,211,238,0.7);
+  animation: pulse 1.8s infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(34,211,238,0.6); }
+  70%  { box-shadow: 0 0 0 8px rgba(34,211,238,0); }
+  100% { box-shadow: 0 0 0 0 rgba(34,211,238,0); }
+}
+.scan-line {
+  position: absolute; left: 0; right: 0; height: 2px; top: 0; z-index: 2;
+  background: linear-gradient(90deg, transparent, rgba(34,211,238,0.9), rgba(124,58,237,0.9), transparent);
+  box-shadow: 0 0 18px rgba(34,211,238,0.85);
+  animation: scan 4.5s linear infinite;
+  pointer-events: none;
+}
+@keyframes scan {
+  0%   { top: 0%;   opacity: 0; }
+  10%  { opacity: .9; }
+  90%  { opacity: .9; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* 识别结果 */
+.result-box { display: flex; align-items: center; gap: 22px; padding: 8px 4px 12px; }
+.result-main { flex: 1; min-width: 0; }
+.result-label {
+  font-size: 11.5px; font-weight: 600; letter-spacing: 1px;
+  color: var(--text-sub); text-transform: uppercase; margin-bottom: 4px;
+}
+.result-name {
+  font-size: 30px; font-weight: 800; letter-spacing: -.6px;
+  background: var(--grad);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  line-height: 1.25;
+  filter: drop-shadow(0 0 14px rgba(34,211,238,0.45));
+}
+.result-name.unknown {
+  background: linear-gradient(135deg, #FB7185, #F97316);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 14px rgba(251,113,133,0.45));
+}
+.result-sub { color: var(--text-sub); font-size: 12.5px; margin-top: 2px; }
+
+.ring-wrap { position: relative; width: 92px; height: 92px; flex-shrink: 0; }
+.ring-wrap svg { transform: rotate(-90deg); }
+.ring-bg { stroke: rgba(34,211,238,0.14); }
+.ring-fg {
+  stroke: url(#ringGrad); stroke-linecap: round;
+  filter: drop-shadow(0 0 5px rgba(34,211,238,0.55));
+  transition: stroke-dashoffset .6s cubic-bezier(.4,0,.2,1);
+}
+.ring-text {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 1px;
+}
+.ring-num {
+  font-size: 19px; font-weight: 800; letter-spacing: -.5px;
+  background: var(--grad);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; line-height: 1;
+}
+.ring-unit { font-size: 9.5px; color: var(--text-sub); letter-spacing: .5px; }
+
+/* 状态列表 */
+.status-list { list-style: none; }
+.status-list li {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 11px 0; border-bottom: 1px dashed rgba(34,211,238,0.10); font-size: 13px;
+}
+.status-list li:last-child { border-bottom: none; }
+.status-list span { color: var(--text-sub); }
+.status-list b { font-weight: 650; font-variant-numeric: tabular-nums; color: #C9E8FF; }
+.status-ok { color: var(--ok); display: inline-flex; align-items: center; gap: 7px; }
+.status-ok::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 0 0 rgba(34,227,160,0.5);
+  animation: pulseGreen 2s infinite;
+}
+@keyframes pulseGreen {
+  0%   { box-shadow: 0 0 0 0 rgba(34,227,160,0.5); }
+  70%  { box-shadow: 0 0 0 7px rgba(34,227,160,0); }
+  100% { box-shadow: 0 0 0 0 rgba(34,227,160,0); }
+}
+.status-err { color: var(--danger); display: inline-flex; align-items: center; gap: 7px; }
+.status-err::before {
+  content: ""; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--danger);
+}
+
+/* 指标卡 */
+.metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.metric {
+  background: var(--grad-soft);
+  border: 1px solid rgba(34,211,238,0.20);
+  border-radius: 11px; padding: 13px 12px; text-align: center;
+}
+.metric-val {
+  font-size: 18px; font-weight: 800; letter-spacing: -.4px;
+  background: var(--grad);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-variant-numeric: tabular-nums; line-height: 1.2;
+}
+.metric-key { font-size: 11px; color: var(--text-sub); margin-top: 3px; }
+
+/* 表格 */
+.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.table th {
+  text-align: left; padding: 10px 12px; color: var(--text-sub);
+  font-weight: 600; font-size: 11.5px; letter-spacing: 1px;
+  text-transform: uppercase; border-bottom: 1px solid var(--border);
+}
+.table td { padding: 13px 12px; border-bottom: 1px solid rgba(34,211,238,0.07); }
+.table tbody tr { transition: background .16s ease; }
+.table tbody tr:hover { background: rgba(34,211,238,0.06); }
+.table .empty { text-align: center; color: var(--text-sub); padding: 44px 0; }
+.cell-person { display: flex; align-items: center; gap: 11px; font-weight: 600; }
+.avatar {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: var(--grad); color: #04121A;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; flex-shrink: 0;
+  box-shadow: 0 0 14px rgba(34,211,238,0.45);
+}
+
+/* 按钮 */
+.btn {
+  padding: 9px 18px; border: 1px solid var(--border);
+  background: rgba(34,211,238,0.06); border-radius: 10px;
+  cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text);
+  font-family: inherit; transition: all .18s ease;
+}
+.btn:hover { background: rgba(34,211,238,0.13); box-shadow: 0 0 16px rgba(34,211,238,0.22); transform: translateY(-1px); }
+.btn-primary {
+  background: var(--grad); border: none; color: #04121A;
+  font-weight: 800;
+  box-shadow: 0 0 20px rgba(34,211,238,0.45);
+}
+.btn-primary:hover { box-shadow: 0 0 30px rgba(34,211,238,0.65); transform: translateY(-1.5px); }
+.btn-danger {
+  color: var(--danger); border-color: rgba(251,113,133,0.35);
+  background: rgba(251,113,133,0.08);
+}
+.btn-danger:hover { background: rgba(251,113,133,0.16); box-shadow: 0 0 14px rgba(251,113,133,0.25); }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
+.btn-sm { padding: 6px 13px; font-size: 12.5px; border-radius: 8px; }
+
+/* 表单 */
+.form-group { margin-bottom: 18px; }
+.form-group label {
+  display: block; margin-bottom: 7px;
+  font-size: 12.5px; font-weight: 600; color: #9FBBD8;
+}
+.form-group input[type="text"],
+.form-group input[type="file"],
+.form-group select {
+  width: 100%; padding: 10px 13px;
+  border: 1px solid rgba(34,211,238,0.18);
+  border-radius: 10px; font-size: 13.5px; outline: none;
+  font-family: inherit; background: rgba(34,211,238,0.05);
+  color: var(--text);
+  transition: all .18s ease;
+}
+.form-group input:focus, .form-group select:focus {
+  border-color: rgba(34,211,238,0.7);
+  box-shadow: 0 0 0 3px rgba(34,211,238,0.15), 0 0 18px rgba(34,211,238,0.2);
+  background: rgba(34,211,238,0.08);
+}
+.form-group select option { background: #0B1830; color: var(--text); }
+.form-group input[type="file"] { padding: 8px; font-size: 12.5px; }
+.hint { font-size: 11.5px; color: var(--text-sub); margin-top: 7px; line-height: 1.5; }
+.hint-inline { font-weight: 400; color: var(--text-sub); }
+
+/* 滑块 */
+.range-row { display: flex; align-items: center; gap: 14px; }
+.range-row input[type="range"] {
+  flex: 1; -webkit-appearance: none; appearance: none;
+  height: 6px; border-radius: 999px;
+  background: var(--grad); outline: none;
+  box-shadow: 0 0 10px rgba(34,211,238,0.35);
+}
+.range-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+  background: #04121A; border: 3px solid var(--primary);
+  box-shadow: 0 0 12px rgba(34,211,238,0.8); cursor: pointer;
+}
+.range-val {
+  min-width: 52px; text-align: center; font-weight: 800; font-size: 14px;
+  color: #04121A; background: var(--grad); padding: 4px 10px; border-radius: 8px;
+  font-variant-numeric: tabular-nums; box-shadow: 0 0 16px rgba(34,211,238,0.45);
+}
+
+/* 复选框 */
+.checkbox-label {
+  display: flex !important; align-items: center; gap: 9px;
+  cursor: pointer; font-weight: 500 !important;
+}
+.checkbox-label input { width: 17px !important; height: 17px; accent-color: #22D3EE; }
+
+/* 弹窗 */
+.modal-mask {
+  position: fixed; inset: 0; background: rgba(2,5,10,0.78);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  display: none; align-items: center; justify-content: center; z-index: 999;
+}
+.modal-mask.show { display: flex; animation: fadeIn .18s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+  background: #08111F; border-radius: 16px; padding: 26px 26px 22px;
+  width: 430px; max-width: 92vw;
+  border: 1px solid rgba(34,211,238,0.25);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.8), 0 0 60px rgba(34,211,238,0.10);
+  animation: popIn .22s cubic-bezier(.34,1.4,.64,1);
+}
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(14px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-title {
+  font-size: 17px; font-weight: 700; letter-spacing: -.2px;
+  margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+}
+.modal-title::before {
+  content: ""; width: 4px; height: 17px; border-radius: 3px;
+  background: var(--grad); box-shadow: 0 0 10px rgba(34,211,238,0.6);
+}
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+
+@media (max-width: 900px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .container { padding: 24px 18px 60px; }
+}
+
+/* ===== 照片识别专属 ===== */
+.photo-result {
+  margin-top: 18px; font-size: 13.5px; line-height: 1.9;
+  padding: 14px; border-radius: 10px;
+  background: rgba(34,211,238,0.04);
+  border: 1px solid rgba(34,211,238,0.16);
+  display: none; word-break: break-all;
+}
+.photo-result.show { display: block; }
+.photo-result .hit  { color: var(--ok); font-weight: 700; }
+.photo-result .miss { color: var(--danger); font-weight: 700; }
+.photo-result .k { color: var(--text-sub); }
+
+/* ===== 入场动画 ===== */
+#splash {
+  position: fixed; inset: 0;
+  background: radial-gradient(circle at 50% 50%, #050D18 0%, #000 65%);
+  z-index: 100000;
+  overflow: hidden;
+  transition: opacity .8s ease, visibility .8s ease;
+}
+#splash.hide { opacity: 0; visibility: hidden; }
+
+#splash .stars {
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 20% 30%, rgba(34,211,238,.7), transparent),
+    radial-gradient(1.5px 1.5px at 70% 20%, rgba(80,220,255,.7), transparent),
+    radial-gradient(1px 1px at 40% 70%, rgba(124,58,237,.6), transparent),
+    radial-gradient(1.5px 1.5px at 85% 60%, rgba(56,189,248,.6), transparent),
+    radial-gradient(1px 1px at 15% 80%, rgba(100,230,255,.6), transparent),
+    radial-gradient(1px 1px at 55% 45%, rgba(255,255,255,.5), transparent),
+    radial-gradient(1.5px 1.5px at 90% 85%, rgba(139,92,246,.5), transparent);
+  animation: spTwinkle 4s ease-in-out infinite alternate;
+}
+@keyframes spTwinkle { from{opacity:.35;} to{opacity:.9;} }
+
+#splash .hero {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(46vw, 360px);
+  aspect-ratio: 1 / 1;
+  display: flex; align-items: center; justify-content: center;
+  animation: spHeroIn 1.1s cubic-bezier(.2,.9,.3,1.15) both;
+}
+@keyframes spHeroIn {
+  0%   { transform: translate(-50%,-50%) scale(.25) rotate(-10deg); opacity:0; filter:blur(16px) brightness(2.5); }
+  60%  { transform: translate(-50%,-50%) scale(1.08) rotate(2deg);  opacity:1; filter:blur(0) brightness(1.2); }
+  100% { transform: translate(-50%,-50%) scale(1) rotate(0);         opacity:1; filter:blur(0) brightness(1); }
+}
+
+#splash .hero img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  mix-blend-mode: screen;
+  animation: spBreathe 2.8s ease-in-out infinite;
+}
+@keyframes spBreathe {
+  0%,100% { filter: drop-shadow(0 0 18px rgba(34,211,238,.55)) drop-shadow(0 0 40px rgba(124,58,237,.45)); }
+  50%     { filter: drop-shadow(0 0 30px rgba(34,211,238,.9))  drop-shadow(0 0 65px rgba(124,58,237,.7)); }
+}
+
+#splash .halo {
+  position: absolute; inset: -8%;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-top-color: rgba(34,211,238,.55);
+  border-left-color: rgba(124,58,237,.55);
+  animation: spSpin 3.4s linear infinite;
+  pointer-events: none;
+}
+#splash .halo.h2 {
+  inset: -16%;
+  border-top-color: rgba(56,189,248,.35);
+  border-left-color: rgba(139,92,246,.35);
+  animation-duration: 5.5s;
+  animation-direction: reverse;
+}
+@keyframes spSpin { to { transform: rotate(360deg); } }
+
+#splash .burst {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 26%; height: 26%;
+  margin: -13% 0 0 -13%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.95), rgba(34,211,238,.45) 40%, transparent 70%);
+  animation: spBurst 2.6s ease-out infinite;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+@keyframes spBurst {
+  0%   { transform: scale(.4); opacity:.85; }
+  100% { transform: scale(2.6); opacity:0; }
+}
+
+#splash .caption {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 14%;
+  text-align: center;
+}
+#splash .title {
+  font-size: clamp(16px, 2.4vw, 22px);
+  font-weight: 800;
+  letter-spacing: .4em;
+  text-indent: .4em;
+  background: linear-gradient(90deg,#22d3ee,#7c3aed,#38bdf8,#22d3ee);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 12px rgba(34,211,238,.5));
+  animation: spTextIn .8s .7s both, spFlow 3.5s linear infinite;
+}
+@keyframes spTextIn {
+  from { opacity:0; transform: translateY(16px); letter-spacing: .9em; }
+  to   { opacity:1; transform: translateY(0);    letter-spacing: .4em; }
+}
+@keyframes spFlow { to { background-position: 300% 0; } }
+
+#splash .subtitle {
+  margin-top: 10px;
+  font-size: 11.5px;
+  letter-spacing: .4em;
+  color: rgba(125,232,251,.6);
+  animation: spTextIn .8s 1s both;
+}
+</style>
+</head>
+<body>
+<div id="splash">
+  <div class="stars"></div>
+  <div class="hero">
+    <div class="halo"></div>
+    <div class="halo h2"></div>
+    <div class="burst"></div>
+    <img src="{{ url_for('static', filename='logo1.png') }}" alt="Логотип">
+  </div>
+  <div class="caption">
+    <div class="title">ДВИЖОК РАСПОЗНАВАНИЯ ЛИЦ</div>
+    <div class="subtitle">СИСТЕМА РАСПОЗНАВАНИЯ ЛИЦ</div>
+  </div>
+</div>
+
+<nav class="navbar">
+  <div class="nav-inner">
+    <div class="logo"><span class="logo-dot"></span>FACE ENGINE</div>
+    <div class="nav-links">
+      <a data-page="index" class="active">Главная</a>
+      <a data-page="people">Управление персоналом</a>
+      <a data-page="photo">Распознавание по фото</a>
+      <a data-page="settings">Настройки</a>
+    </div>
+  </div>
+</nav>
+
+<main class="container">
+
+  <!-- ========== 首页 ========== -->
+  <section class="page active" id="page-index">
+    <div class="page-title">Распознавание в реальном времени</div>
+    <div class="grid-2">
+      <div class="card video-card">
+        <div class="video-shell">
+          <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+          <span class="video-corner vc-tl"></span>
+          <span class="video-corner vc-tr"></span>
+          <span class="video-corner vc-bl"></span>
+          <span class="video-corner vc-br"></span>
+          <div class="scan-line"></div>
+          <img src="/video_feed" alt="Видеопоток">
+        </div>
+        <div class="metric-grid" style="margin-top:14px;">
+          <div class="metric"><div class="metric-val" id="mFps">—</div><div class="metric-key">Частота кадров, FPS</div></div>
+          <div class="metric"><div class="metric-val" id="mCount">—</div><div class="metric-key">Человек в базе</div></div>
+          <div class="metric"><div class="metric-val" id="mTol">—</div><div class="metric-key">Порог распознавания</div></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <div class="card-title">Результат распознавания</div>
+          <div class="result-box">
+            <div class="result-main">
+              <div class="result-label">Текущее распознавание</div>
+              <div class="result-name" id="resName">—</div>
+              <div class="result-sub" id="resDist">Ожидание изображения…</div>
+            </div>
+            <div class="ring-wrap">
+              <svg width="92" height="92" viewBox="0 0 92 92">
+                <defs>
+                  <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#22D3EE"/>
+                    <stop offset="100%" stop-color="#7C3AED"/>
+                  </linearGradient>
+                </defs>
+                <circle class="ring-bg" cx="46" cy="46" r="38" fill="none" stroke-width="7"/>
+                <circle class="ring-fg" id="ringFg" cx="46" cy="46" r="38" fill="none" stroke-width="7"
+                        stroke-dasharray="238.76" stroke-dashoffset="238.76"/>
+              </svg>
+              <div class="ring-text">
+                <div class="ring-num" id="ringNum">0</div>
+                <div class="ring-unit">СХОДСТВО %</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:22px;">
+          <div class="card-title">Состояние системы</div>
+          <ul class="status-list">
+            <li><span>Состояние работы</span><b class="status-ok" id="statState">Работает</b></li>
+            <li><span>Последнее обновление</span><b id="statTs">—</b></li>
+            <li><span>Модель распознавания</span><b>buffalo_l</b></li>
+            <li><span>Протокол передачи потока</span><b>MJPEG</b></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 人员管理 ========== -->
+  <section class="page" id="page-people">
+    <div class="page-title-row">
+      <div class="page-title">Управление персоналом</div>
+      <button class="btn btn-primary" id="btnEnroll">+ Добавить человека</button>
+    </div>
+    <div class="card">
+      <table class="table">
+        <thead><tr><th>Имя</th><th>Время добавления</th><th style="width:130px;">Действия</th></tr></thead>
+        <tbody id="peopleTbody">
+          <tr><td colspan="3" class="empty">Загрузка…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ========== 照片识别（新增） ========== -->
+  <section class="page" id="page-photo">
+    <div class="page-title">Распознавание по фотографии</div>
+    <div class="grid-2">
+
+      <div class="card">
+        <div class="card-title">Загрузить фотографию</div>
+
+        <div class="form-group">
+          <label>Имя <span class="hint-inline">(только для добавления)</span></label>
+          <input type="text" id="photoName" placeholder="Введите имя">
+        </div>
+
+        <div class="form-group">
+          <label>Контакт <span class="hint-inline">(необязательно)</span></label>
+          <input type="text" id="photoContact" placeholder="WeChat / телефон">
+        </div>
+
+        <div class="form-group">
+          <label>Фотография</label>
+          <input type="file" id="photoFile" accept="image/*">
+          <div class="hint">Для распознавания достаточно выбрать фото. Имя нужно только при добавлении нового человека.</div>
+        </div>
+
+        <div class="modal-actions" style="justify-content:flex-start;">
+          <button class="btn btn-primary" id="btnPhotoRecognize">Распознать</button>
+          <button class="btn" id="btnPhotoEnroll">Добавить этого человека</button>
+        </div>
+
+        <div class="photo-result" id="photoResult"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Как это работает</div>
+        <ul class="status-list">
+          <li><span>Распознавание</span><b>1:N</b></li>
+          <li><span>Модель</span><b>buffalo_l</b></li>
+          <li><span>Метрика</span><b>косинусное расстояние</b></li>
+          <li><span>Интерфейс</span><b>/api/recognize_photo</b></li>
+        </ul>
+        <div class="hint" style="margin-top:14px;">
+          Загрузка выполняется на сервер, лицо извлекается и сравнивается со всей базой.
+          Файл не сохраняется на диск после обработки.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========== 设置 ========== -->
+  <section class="page" id="page-settings">
+    <div class="page-title">Настройки</div>
+    <div class="card" style="max-width:680px;">
+      <div class="form-group">
+        <label>Порог распознавания <span class="hint-inline">(косинусное расстояние; меньше — строже, рекомендуется 0.35–0.45)</span></label>
+        <div class="range-row">
+          <input type="range" id="cfgTol" min="0.20" max="0.80" step="0.01" value="0.45">
+          <span class="range-val" id="cfgTolVal">0.45</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Номер камеры</label>
+        <select id="cfgCam">
+          <option value="0">0 (по умолчанию)</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Разрешение детекции</label>
+        <select id="cfgDet">
+          <option value="320">320 (быстро, рекомендуется)</option>
+          <option value="480">480</option>
+          <option value="640">640 (медленно)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="cfgShowDist" checked>
+          Показывать расстояние на экране
+        </label>
+      </div>
+      <div class="modal-actions" style="justify-content:flex-start;">
+        <button class="btn btn-primary" id="btnSave">Сохранить настройки</button>
+      </div>
+      <div class="hint" id="cfgMsg" style="margin-top:12px;"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- 录入弹窗 -->
+<div class="modal-mask" id="modalMask">
+  <div class="modal">
+    <div class="modal-title">Добавить нового человека</div>
+    <div class="form-group">
+      <label>Имя</label>
+      <input type="text" id="enrollName" placeholder="Введите имя">
+    </div>
+    <div class="form-group">
+      <label>Фотография</label>
+      <input type="file" id="enrollFile" accept="image/*">
+      <div class="hint">Рекомендуется снимать на камеру на месте — освещение должно совпадать с условиями распознавания</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="btnCancel">Отмена</button>
+      <button class="btn btn-primary" id="btnConfirm">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= 通用 ================= */
+const TOKEN = "YWB2LH";   // 必须与 app.py 的 API_TOKEN 一致
+
+/* ================= 页面切换 ================= */
+document.querySelectorAll(".nav-links a").forEach(a => {
+  a.addEventListener("click", () => {
+    document.querySelectorAll(".nav-links a").forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    a.classList.add("active");
+    document.getElementById("page-" + a.dataset.page).classList.add("active");
+  });
+});
+
+/* ================= 首页 ================= */
+const RING_LEN = 2 * Math.PI * 38;
+let lastName = "—";
+let curSim = 0;
+let statusFail = 0;
+
+const elName    = document.getElementById("resName");
+const elDist    = document.getElementById("resDist");
+const elFps     = document.getElementById("mFps");
+const elCnt     = document.getElementById("mCount");
+const elTol     = document.getElementById("mTol");
+const elTs      = document.getElementById("statTs");
+const elState   = document.getElementById("statState");
+const elRing    = document.getElementById("ringFg");
+const elRingNum = document.getElementById("ringNum");
+
+function animateRing(target) {
+  const start = curSim, dur = 450, t0 = performance.now();
+  function step(t) {
+    const p = Math.min((t - t0) / dur, 1);
+    const v = start + (target - start) * (1 - Math.pow(1 - p, 3));
+    curSim = v;
+    elRingNum.textContent = Math.round(v);
+    elRing.style.strokeDashoffset = RING_LEN * (1 - v / 100);
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+async function refreshStatus() {
+  try {
+    const r = await fetch("/api/status");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    statusFail = 0;
+    elState.textContent = "Работает";
+    elState.className = "status-ok";
+
+    if (d.name !== lastName) {
+      lastName = d.name;
+      elName.textContent = d.name || "—";
+      elName.classList.toggle("unknown", d.name === "未知" || d.name === "Неизвестно");
+    }
+    if (typeof d.dist === "number" && d.dist >= 0) {
+      animateRing(Math.max(0, (1 - d.dist) * 100));
+      elDist.textContent = `Косинусное расстояние: ${d.dist.toFixed(4)}`;
+    } else {
+      elDist.textContent = "Ожидание изображения…";
+    }
+    elFps.textContent = (typeof d.fps === "number") ? d.fps.toFixed(1) : "—";
+    elCnt.textContent = d.people_count ?? "—";
+    elTol.textContent = d.tol ?? "—";
+    elTs.textContent  = d.ts || "—";
+  } catch (e) {
+    statusFail++;
+    if (statusFail >= 3) {
+      elState.textContent = "Недоступно";
+      elState.className = "status-err";
+      elDist.textContent = "Нет связи с сервером";
+    }
+  }
+}
+setInterval(refreshStatus, 1000);
+refreshStatus();
+
+/* ================= 人员管理 ================= */
+const tbody = document.getElementById("peopleTbody");
+const modal = document.getElementById("modalMask");
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+async function loadPeople() {
+  tbody.innerHTML = `<tr><td colspan="3" class="empty">Загрузка…</td></tr>`;
+  try {
+    const r = await fetch("/api/people", { headers: { "X-Token": TOKEN } });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const list = await r.json();
+    if (!Array.isArray(list) || !list.length) {
+      tbody.innerHTML = `<tr><td colspan="3" class="empty">Пока никто не добавлен</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = list.map(p => `
+      <tr>
+        <td>
+          <div class="cell-person">
+            <div class="avatar">${escapeHtml((p.name || "?").slice(0,1).toUpperCase())}</div>
+            <span>${escapeHtml(p.name)}</span>
+          </div>
+        </td>
+        <td style="color:var(--text-sub);">${escapeHtml(p.enrolled_at || "—")}</td>
+        <td><button class="btn btn-danger btn-sm" data-name="${escapeHtml(p.name)}">Удалить</button></td>
+      </tr>
+    `).join("");
+  } catch (e) {
+    console.warn("Не удалось загрузить список", e);
+    tbody.innerHTML = `<tr><td colspan="3" class="empty">Ошибка загрузки</td></tr>`;
+  }
+}
+
+tbody.addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-name]");
+  if (!btn) return;
+  const name = btn.getAttribute("data-name");
+  if (!confirm(`Удалить «${name}»?`)) return;
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/api/people/${encodeURIComponent(name)}`, {
+      method: "DELETE",
+      headers: { "X-Token": TOKEN }
+    });
+    const res = await r.json();
+    if (res.ok) loadPeople();
+    else { alert(res.msg || "Не удалось удалить"); btn.disabled = false; }
+  } catch (err) {
+    alert("Ошибка сети");
+    btn.disabled = false;
+  }
+});
+
+document.getElementById("btnEnroll").onclick = () => {
+  modal.classList.add("show");
+  document.getElementById("enrollName").value = "";
+  document.getElementById("enrollFile").value = "";
+};
+document.getElementById("btnCancel").onclick = () => modal.classList.remove("show");
+modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("show"); });
+
+/* ---- 确认录入 ---- */
+document.getElementById("btnConfirm").onclick = async () => {
+  const btn  = document.getElementById("btnConfirm");
+  const name = document.getElementById("enrollName").value.trim();
+  const file = document.getElementById("enrollFile").files[0];
+
+  if (!name) return alert("Введите имя");
+  if (!file) return alert("Выберите фотографию");
+
+  const fd = new FormData();
+  fd.append("name", name);
+  fd.append("file", file);
+
+  btn.disabled = true;
+  btn.textContent = "Обработка...";
+  try {
+    const r = await fetch("/api/enroll", {
+      method: "POST",
+      headers: { "X-Token": TOKEN },
+      body: fd
+    });
+    const res = await r.json();
+    if (res.ok) { modal.classList.remove("show"); loadPeople(); }
+    else alert(res.msg || "Не удалось добавить");
+  } catch (e) {
+    alert("Ошибка сети");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Подтвердить";
+  }
+};
+
+loadPeople();
+
+/* ================= 照片识别（新增） ================= */
+const photoResult = document.getElementById("photoResult");
+
+function showPhoto(text, cls) {
+  photoResult.className = "photo-result show " + (cls || "");
+  photoResult.innerHTML = text;
+}
+
+async function postForm(url, formData) {
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "X-Token": TOKEN },
+    body: formData
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+
+document.getElementById("btnPhotoRecognize").onclick = async () => {
+  const btn = document.getElementById("btnPhotoRecognize");
+  const f   = document.getElementById("photoFile").files[0];
+
+  if (!f) return showPhoto('Сначала выберите фотографию', 'miss');
+
+  btn.disabled = true;
+  showPhoto('Распознавание…');
+
+  const fd = new FormData();
+  fd.append('file', f);
+
+  try {
+    const d = await postForm('/api/recognize_photo', fd);
+    if (!d.ok) {
+      showPhoto(d.msg || 'Ошибка распознавания', 'miss');
+    } else if (d.matched) {
+      showPhoto(
+        `<span class="hit">Совпадение найдено</span><br>` +
+        `<span class="k">Имя：</span>${escapeHtml(d.name)}<br>` +
+        `<span class="k">Контакт：</span>${escapeHtml(d.contact || 'не указан')}<br>` +
+        `<span class="k">Косинусное расстояние：</span>${d.dist}`,
+        'hit'
+      );
+    } else {
+      const tol = (typeof d.tol === 'number') ? d.tol : 0.45;
+      showPhoto(
+        `<span class="miss">Совпадений не найдено</span><br>` +
+        `<span class="k">Ближайшее расстояние：</span>${d.dist} (порог ${tol})`,
+        'miss'
+      );
+    }
+  } catch (e) {
+    showPhoto('Ошибка запроса：' + e.message, 'miss');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+document.getElementById("btnPhotoEnroll").onclick = async () => {
+  const btn     = document.getElementById("btnPhotoEnroll");
+  const name    = document.getElementById("photoName").value.trim();
+  const contact = document.getElementById("photoContact").value.trim();
+  const f       = document.getElementById("photoFile").files[0];
+
+  if (!name) return showPhoto('Введите имя', 'miss');
+  if (!f)    return showPhoto('Сначала выберите фотографию', 'miss');
+
+  btn.disabled = true;
+  showPhoto('Добавление…');
+
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('contact', contact);
+  fd.append('file', f);
+
+  try {
+    const d = await postForm('/api/enroll', fd);
+    showPhoto(d.msg || (d.ok ? 'Добавлено' : 'Не удалось добавить'), d.ok ? 'hit' : 'miss');
+    if (d.ok) loadPeople();
+  } catch (e) {
+    showPhoto('Ошибка запроса：' + e.message, 'miss');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+/* ================= 设置 ================= */
+const cfgTol     = document.getElementById("cfgTol");
+const cfgTolVal  = document.getElementById("cfgTolVal");
+const cfgCam     = document.getElementById("cfgCam");
+const cfgDet     = document.getElementById("cfgDet");
+const cfgShow    = document.getElementById("cfgShowDist");
+const cfgMsg     = document.getElementById("cfgMsg");
+
+cfgTol.addEventListener("input", () => {
+  const v = parseFloat(cfgTol.value);
+  cfgTolVal.textContent = Number.isFinite(v) ? v.toFixed(2) : "—";
+});
+
+async function loadConfig() {
+  try {
+    const r = await fetch("/api/config", { headers: { "X-Token": TOKEN } });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const c = await r.json();
+    const tol = Number(c.TOL ?? 0.45);
+    cfgTol.value = tol;
+    cfgTolVal.textContent = tol.toFixed(2);
+    cfgCam.value  = String(c.cam_id ?? 0);
+    cfgDet.value  = String(c.det_size ?? 320);
+    cfgShow.checked = !!c.show_dist;
+  } catch (e) {
+    console.warn("Не удалось прочитать настройки", e);
+    cfgMsg.textContent = "Не удалось загрузить настройки";
+    cfgMsg.style.color = "var(--danger)";
+  }
+}
+
+document.getElementById("btnSave").onclick = async () => {
+  const tol = parseFloat(cfgTol.value);
+  if (!Number.isFinite(tol)) {
+    cfgMsg.textContent = "Некорректный порог";
+    cfgMsg.style.color = "var(--danger)";
+    return;
+  }
+  const payload = {
+    TOL: tol,
+    cam_id: parseInt(cfgCam.value, 10) || 0,
+    det_size: parseInt(cfgDet.value, 10) || 320,
+    show_dist: cfgShow.checked,
+  };
+  try {
+    const r = await fetch("/api/config", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Token": TOKEN
+      },
+      body: JSON.stringify(payload),
+    });
+    const res = await r.json();
+    if (res.ok) {
+      cfgMsg.textContent = "✓ Сохранено. Перезапустите распознавание для применения.";
+      cfgMsg.style.color = "var(--ok)";
+    } else {
+      cfgMsg.textContent = res.msg || "Не удалось сохранить";
+      cfgMsg.style.color = "var(--danger)";
+    }
+  } catch (e) {
+    cfgMsg.textContent = "Ошибка сети";
+    cfgMsg.style.color = "var(--danger)";
+  }
+};
+
+loadConfig();
+</script>
+<script>
+setTimeout(() => {
+  const s = document.getElementById('splash');
+  if (s) {
+    s.classList.add('hide');
+    setTimeout(() => s.remove(), 900);
+  }
+}, 2600);
+</script>
+</body>
+</html>
